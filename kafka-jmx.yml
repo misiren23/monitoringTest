@@ -1,0 +1,32 @@
+startDelaySeconds: 10
+ssl: false
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # Broker метрики
+  - pattern: "kafka.(server|controller|network|log)<>(\\w+):"
+    name: "kafka_$1_$2"
+    type: GAUGE
+
+  # Producer метрики
+  - pattern: "kafka.producer<type=(producer-metrics|producer-topic-metrics), (.+)><>(\\w+)"
+    name: "kafka_producer_$3"
+    labels:
+      type: "$1"
+      client_id: "$2"
+
+  # Consumer метрики
+  - pattern: "kafka.consumer<type=(consumer-fetch-manager-metrics|consumer-coordinator-metrics), (.+)><>(\\w+)"
+    name: "kafka_consumer_$3"
+    labels:
+      type: "$1"
+      client_id: "$2"
+
+  - pattern: "kafka.server<type=(\\w+), name=(\\w+)><>(\\w+)"
+    name: "kafka_server_$1_$2_$3"
+    type: COUNTER
+
+  - pattern: "kafka.network<type=RequestMetrics, name=(.+)><>(\\w+)"
+    name: "kafka_network_$1"
+    type: COUNTER

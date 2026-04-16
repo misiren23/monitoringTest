@@ -7,6 +7,9 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
     ports:
       - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -22,29 +25,21 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-      KAFKA_JMX_PORT: 9999
       KAFKA_JMX_HOSTNAME: kafka
+      KAFKA_OPTS: "-javaagent:/opt/jmx-exporter/jmx_prometheus_javaagent.jar=7071:/opt/jmx-exporter/kafka-jmx.yml"
     ports:
       - "9092:9092"
       - "9093:9093"
+      - "7071:7071"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+      - ./kafka-jmx.yml:/opt/jmx-exporter/kafka-jmx.yml
+      - ./libs/jmx_prometheus_javaagent-0.20.0.jar:/opt/jmx-exporter/jmx_prometheus_javaagent.jar
     healthcheck:
       test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  jmx-exporter:
-    image: bitnami/jmx-exporter:latest
-    container_name: jmx-exporter
-    depends_on:
-      - kafka
-    command:
-      - "5556"
-      - /opt/bitnami/jmx-exporter/config.yaml
-    volumes:
-      - ./jmx-exporter/kafka-jmx.yml:/opt/bitnami/jmx-exporter/config.yaml:ro
-    ports:
-      - "5556:5556"
 
   app:
     image: monitoringtest-app
@@ -61,8 +56,11 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
 
   grafana:
     image: grafana/grafana:latest
@@ -76,3 +74,7 @@ services:
 
 volumes:
   grafana-storage:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+  prometheus_data:
