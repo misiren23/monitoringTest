@@ -1,0 +1,79 @@
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-test-config
+data:
+  application.properties: |
+    spring.kafka.bootstrap-servers=kafka:9092
+    spring.kafka.consumer.group-id=data-consumer-group
+    spring.kafka.consumer.auto-offset-reset=earliest
+    spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+    spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+    spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+    spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-test
+  labels:
+    app: monitoring-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitoring-test
+  template:
+    metadata:
+      labels:
+        app: monitoring-test
+    spec:
+      containers:
+        - name: app
+          image: monitoringtest-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka:9092"
+            - name: SPRING_APPLICATION_NAME
+              value: "monitoring-test"
+            - name: JAVA_OPTS
+              value: "-Xmx512m -Xms256m"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-test-service
+spec:
+  type: NodePort
+  selector:
+    app: monitoring-test
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+      name: http
